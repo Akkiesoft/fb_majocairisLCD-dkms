@@ -1,0 +1,94 @@
+/* Device Tree for fb_majocairisLCD */
+/* 2021 @akkiesoft, @devemin  */
+
+/* ベースにした: https://gist.github.com/hgroll/2731ae6d05350df663b123615f765bf5 */
+
+/*
+### compile
+$ dtc -I dts -O dtb -o majocairis.dtbo majocairis.dts
+$ sudo cp majocairis.dtbo /boot/overlays/
+
+### configure
+$ sudo vi /boot/config.txt
+[all]
+# 最後の行に追記
+dtoverlay=majocairis
+*/
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+
+			spidev@0{
+				status = "disabled";
+			};
+
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
+
+
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+		       majocairis_pins: majocairis_pins {
+				/* 使用するピンとout/inの定義 */
+				brcm,pins     = <21 22 23 24 5 6 13 19 26 12 16 20>;
+				brcm,function = <1   1  1  1 1 1  1  1  1  1  1  1>; /* 1:out 0:in */
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			/* needed to avoid dtc warning */
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			majocairis: majocairis@0{
+				/* 使用するドライバーの定義 */
+				compatible = "ilitek,majocairisLCD";
+				/* regはcs(0 or 1)かと思われるが不明 */
+				reg = <0>;
+				/* fragment@1で定義したピン情報 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&majocairis_pins>;
+				spi-max-frequency = <10000000>;
+				fps = <20>;
+				debug = <0>;
+
+				reset-gpios = <&gpio 21 1>;
+				dc-gpios = <&gpio 22 0>;
+				wr-gpios = <&gpio 23 0>;
+				cs-gpios = <&gpio 24 1>;
+				/* db-gpiosかきかた https://github.com/notro/fbtft/issues/443 */
+				db-gpios = <&gpio 5 0>,
+						<&gpio 6 0>,
+						<&gpio 13 0>,
+						<&gpio 19 0>,
+						<&gpio 26 0>,
+						<&gpio 12 0>,
+						<&gpio 16 0>,
+						<&gpio 20 0>;
+			};
+
+		};
+	};
+ 	__overrides__ {
+		/* /boot/config.txtで上書きできるパラメータの定義 */
+ 	 	speed =   <&majocairis>,"spi-max-frequency:0";
+ 	 	rotate =  <&majocairis>,"rotate:0";
+ 	 	fps =     <&majocairis>,"fps:0";
+ 	 	debug =   <&majocairis>,"debug:0";
+ 	};
+};
